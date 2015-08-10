@@ -3,41 +3,43 @@ ChicagoBoss Riak Search 2.0 DB Adapter(Not Finished)
 
 Limiations
 ----------
-*Install extractor first
-*Single bucket type
-*Index is auto-generated per bucket
-*Schema must be manually created
+* Install extractor first
+* Single bucket type
+* Index is auto-generated per bucket
+* Schema must be manually created
 
 Make sure search=on in riak.conf
 
 Configure
 ---------
 1. Install extractor
-   Compile the boss_model_extractor.erl into .beam file
-   Move it to /opt/beams/
-   Edit advanced.config to add the path
-    [
-    	...
-    	{vm_args, [
-    	  {"-pa /opt/beams", ""}
-    	]},
-        ...
-    ].
+
+        Compile the boss_model_extractor.erl into .beam file
+        Move it to /opt/beams/
+        Edit advanced.config to add the path
+
+        [
+        	...
+        	{vm_args, [
+        	  {"-pa /opt/beams", ""}
+        	]},
+            ...
+        ].
    Restart node
    
 2. Make sure your the adapter has the correct macro
 
-    %% Host and port for protocal buffer 
-    -define(RS2_DB_HOST, "127.0.0.1").
-    -define(RS2_DB_PORT, 8087).
-
-    %% Bucket type (You can change this to your app name)
-    -define(RS2_BUCKET_TYPE, <<"default">>).
+        %% Host and port for protocal buffer 
+        -define(RS2_DB_HOST, "127.0.0.1").
+        -define(RS2_DB_PORT, 8087).
+    
+        %% Bucket type (You can change this to your app name)
+        -define(RS2_BUCKET_TYPE, <<"default">>).
 
 If you are not using default bucket type, you need to create and activate it from command line as well.
 
-    $> riak-admin bucket-type create customtype
-    $> riak-admin bucket-type activate customtype
+        $> riak-admin bucket-type create customtype
+        $> riak-admin bucket-type activate customtype
 
 Create Boss Model
 -----------------
@@ -46,50 +48,52 @@ Create Boss Model
 
 Example: "todoriak_schema_comment.xml"
 
-    <?xml version="1.0" encoding="UTF-8" ?>
-    <schema name="todoriak_schema_comment" version="1.5">
-      <fields>
-        <!-- comment model fields -->
-        <field name="user_id" type="string" indexed="true" stored="true" multiValued="false"/>
-        <field name="content" type="string" indexed="true" stored="true" multiValued="false"/>
-        <field name="published" type="boolean" indexed="true" stored="true" multiValued="false"/>
-        <field name="created" type="date" indexed="true" stored="true" multiValued="false"/>
+        <?xml version="1.0" encoding="UTF-8" ?>
+        <schema name="todoriak_schema_comment" version="1.5">
+          <fields>
+            <!-- comment model fields -->
+            <field name="user_id" type="string" indexed="true" stored="true" multiValued="false"/>
+            <field name="content" type="string" indexed="true" stored="true" multiValued="false"/>
+            <field name="published" type="boolean" indexed="true" stored="true" multiValued="false"/>
+            <field name="created" type="date" indexed="true" stored="true" multiValued="false"/>
+            
+            <!-- other required fields here -->
+            <field name="_yz_id"   type="_yz_str" indexed="true" stored="true"  multiValued="false" required="true"/>
+            <field name="_yz_ed"   type="_yz_str" indexed="true" stored="false" multiValued="false"/>
+            <field name="_yz_pn"   type="_yz_str" indexed="true" stored="false" multiValued="false"/>
+            <field name="_yz_fpn"  type="_yz_str" indexed="true" stored="false" multiValued="false"/>
+            <field name="_yz_vtag" type="_yz_str" indexed="true" stored="false" multiValued="false"/>
+            <field name="_yz_rk"   type="_yz_str" indexed="true" stored="true"  multiValued="false"/>
+            <field name="_yz_rt"   type="_yz_str" indexed="true" stored="true"  multiValued="false"/>
+            <field name="_yz_rb"   type="_yz_str" indexed="true" stored="true"  multiValued="false"/>
+            <fi eld name="_yz_err"  type="_yz_str" indexed="true" stored="false" multiValued="false"/>
         
-        <!-- other required fields here -->
-        <field name="_yz_id"   type="_yz_str" indexed="true" stored="true"  multiValued="false" required="true"/>
-        <field name="_yz_ed"   type="_yz_str" indexed="true" stored="false" multiValued="false"/>
-        <field name="_yz_pn"   type="_yz_str" indexed="true" stored="false" multiValued="false"/>
-        <field name="_yz_fpn"  type="_yz_str" indexed="true" stored="false" multiValued="false"/>
-        <field name="_yz_vtag" type="_yz_str" indexed="true" stored="false" multiValued="false"/>
-        <field name="_yz_rk"   type="_yz_str" indexed="true" stored="true"  multiValued="false"/>
-        <field name="_yz_rt"   type="_yz_str" indexed="true" stored="true"  multiValued="false"/>
-        <field name="_yz_rb"   type="_yz_str" indexed="true" stored="true"  multiValued="false"/>
-        <fi eld name="_yz_err"  type="_yz_str" indexed="true" stored="false" multiValued="false"/>
+            <!-- catch all -->
+            <dynamicField name="*" type="ignored"  />
+          </fields>
     
-        <!-- catch all -->
-        <dynamicField name="*" type="ignored"  />
-      </fields>
-
-      <uniqueKey>_yz_id</uniqueKey>
-
-      <types>
-        <!-- YZ String: Used for non-analyzed fields -->
-        <fieldType name="_yz_str" class="solr.StrField" sortMissingLast="true" />
-      
-        <!-- Analyzed fields -->
-        <fieldType name="string" class="solr.StrField" sortMissingLast="true" />
-        <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
-        <fieldType name="date" class="solr.TrieDateField"/>
+          <uniqueKey>_yz_id</uniqueKey>
+    
+          <types>
+            <!-- YZ String: Used for non-analyzed fields -->
+            <fieldType name="_yz_str" class="solr.StrField" sortMissingLast="true" />
+          
+            <!-- Analyzed fields -->
+            <fieldType name="string" class="solr.StrField" sortMissingLast="true" />
+            <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
+            <fieldType name="date" class="solr.TrieDateField"/>
+            
+            <!-- Required -->
+            <fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
+          </types>
         
-        <!-- Required -->
-        <fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
-      </types>
-    
-    </schema>
+        </schema>
 
 3. Setup Model
-Run this in boss console on each model:
-    > boss_db_adapter_riaks2:setup_model(<model>) <model> = atom()
+
+    Run this in boss console on each model:
+
+        > boss_db_adapter_riaks2:setup_model(<model>) <model> = atom()
 
 Step 3 will register your schema file, create index based on the schema and set the search index on the bucket associated to the model.
 
