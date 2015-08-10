@@ -1,12 +1,12 @@
 ChicagoBoss Riak Search 2.0 DB Adapter(Not Finished)
 =====================================
 
-Limiations
+Limitations
 ----------
-* Install extractor first
-* Single bucket type
-* Index is auto-generated per bucket
-* Schema must be manually created
+* Install extractor first manually
+* Single bucket type per application
+* Index is auto-generated per bucket following a name convention
+* Schema must be manually created follow a file name convention
 
 Make sure search=on in riak.conf
 
@@ -25,7 +25,8 @@ Configure
         	]},
             ...
         ].
-   Restart node
+        
+        Restart node
    
 2. Make sure your the adapter has the correct macro
 
@@ -46,7 +47,7 @@ Create Boss Model
 1. Create model like usual
 2. Create a schema file under same folder(src/model/): <appname>_schema_<model>.xml
 
-Example: "todoriak_schema_comment.xml"
+        Example:"src/model/todoriak_schema_comment.xml"
 
         <?xml version="1.0" encoding="UTF-8" ?>
         <schema name="todoriak_schema_comment" version="1.5">
@@ -95,7 +96,10 @@ Example: "todoriak_schema_comment.xml"
 
         > boss_db_adapter_riaks2:setup_model(<model>) <model> = atom()
 
-Step 3 will register your schema file, create index based on the schema and set the search index on the bucket associated to the model.
+Step 3 will 
+* register your schema file, 
+* create index based on the schema and 
+* set the search index on the bucket associated to the model.
 
 Verify
 ------
