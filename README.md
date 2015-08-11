@@ -1,6 +1,12 @@
 ChicagoBoss Riak Search 2.0 DB Adapter(Not Finished)
 =====================================
 
+Using https://github.com/basho/riak-erlang-client/tree/2.1.1
+
+Make sure this in rebar.config
+
+{riakc,         ".*",   {git, "git://github.com/basho/riak-erlang-client.git", {tag, "2.1.1"}}},
+
 Limitations
 ----------
 * Your application needs to be the head of the applications property in boss.config
