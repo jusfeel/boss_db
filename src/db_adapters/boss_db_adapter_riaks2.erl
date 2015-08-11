@@ -72,6 +72,7 @@ find(Conn, Type, Conditions, Max, Skip, Sort, SortOrder) ->
     %io:format("##[Max:~p,Skip:~p,Sort:~p,SortOrder:~p]~n",[Max, Skip, Sort, SortOrder]),
     %io:format("Records:~p~n",[Records]),
     Sorted = if
+        Sort =:= id -> Records;
         is_atom(Sort) ->
             lists:sort(fun (A, B) ->
                         case SortOrder of
@@ -137,7 +138,7 @@ save_record(Conn, Record) ->
             [_ | Tail]	= string:tokens(DefinedId, "-"),
             Key		= string:join(Tail, "-"),
             BinKey	= list_to_binary(Key),
-            {ok, O}	= riakc_pb_socket:get(Conn, bucket_type_bucket(Bucket), BinKey),
+            {ok, O}	= riakc_pb_socket:get(Conn, Bucket, BinKey),
             O2		= riakc_obj:update_value(O, term_to_binary(PropList), "application/chicagobossmodel"),
             ok		= riakc_pb_socket:put(Conn, O2),
             Key
