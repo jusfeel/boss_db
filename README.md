@@ -3,12 +3,13 @@ ChicagoBoss Riak Search 2.0 DB Adapter(Not Finished)
 
 Limitations
 ----------
+* Your application needs to be the head of the applications property in boss.config
 * Install extractor first manually
 * Single bucket type per application
 * Index is auto-generated per bucket following a name convention
 * Schema must be manually created follow a file name convention
 
-Make sure search=on in riak.conf
+The first limitation is because I don't know how to the get your application name property so I have to interrogate boss env by hd(boss_env:get_env(applications,[])). Please let me know if you know how.
 
 Configure
 ---------
@@ -55,7 +56,7 @@ Create Boss Model
 1. Create boss model
 2. Create a schema file under same folder(src/model/): <appname>_schema_<model>.xml
 
-        Example:"src/model/todoriak_schema_comment.xml"
+        Example:"src/model/todoriak_schema_rating.xml"
 
         <?xml version="1.0" encoding="UTF-8" ?>
         <schema name="todoriak_schema_rating" version="1.5">
@@ -101,9 +102,10 @@ Create Boss Model
 
 3. Setup Model
 
-    Run this in boss console for each model, <model> is atom:
+    Run this in boss console for each model:
+    
         # if your n_val on the bucket is default 3
-        > boss_db_adapter_riaks2:setup_model(<model>)
+        > boss_db_adapter_riaks2:setup_model(<model>)   # <model> is atom
         
         # If your n_val is not default 3
         > boss_db_adapter_riaks2:setup_mode(<model>, [{n_val,5}]).
