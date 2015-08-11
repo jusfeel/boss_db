@@ -3,7 +3,7 @@
 -export([init/1, terminate/1, start/1, stop/0, find/2, find/7]).
 -export([count/3, counter/2, incr/2, incr/3, delete/2, save_record/2]).
 -export([push/2, pop/2]).
--export([setup_model/1]).
+-export([setup_model/1,setup_model/2]).
 
 -define(LOG(Name, Value), lager:debug("DEBUG: ~s: ~p~n", [Name, Value])).
 
@@ -69,8 +69,8 @@ find(Conn, Type, Conditions, Max, Skip, Sort, SortOrder) ->
     Index = type_to_index(Type),
     {ok, Keys} = get_keys(Conn, Conditions, Index),
     Records = find_acc(Conn, atom_to_list(Type) ++ "-", Keys, []),
-    io:format("##[Max:~p,Skip:~p,Sort:~p,SortOrder:~p]~n",[Max, Skip, Sort, SortOrder]),
-    io:format("Records:~p~n",[Records]),
+    %io:format("##[Max:~p,Skip:~p,Sort:~p,SortOrder:~p]~n",[Max, Skip, Sort, SortOrder]),
+    %io:format("Records:~p~n",[Records]),
     Sorted = if
         is_atom(Sort) ->
             lists:sort(fun (A, B) ->
@@ -127,7 +127,7 @@ save_record(Conn, Record) ->
     RiakKey = case Record:id() of
         id -> % New entry
 	    GUID        = uuid:to_string(uuid:uuid4()),
-            io:format("PropList:~p~n",[PropList]),
+            %io:format("PropList:~p~n",[PropList]),
             O		= riakc_obj:new(Bucket, list_to_binary(GUID), term_to_binary(PropList), "application/chicagobossmodel"),
             {ok, _RO}	= riakc_pb_socket:put(Conn, O, [return_body]),
             GUID;
@@ -281,7 +281,6 @@ riaks2_conditions([{FieldName,Operator,Value}|T], Acc) when is_atom(FieldName) -
   riaks2_conditions([{atom_to_list(FieldName),Operator,Value}|T], Acc);
 riaks2_conditions([{FieldName,Operator,FieldValue}|T], Acc) when Operator =:= equals, is_list(FieldName) ->
   Cond = riaks2_conditions_filter(FieldName, FieldValue),
-  io:format("Conditions:~p~n",[Cond]),
   riaks2_conditions(T, string:join([Acc,Cond]," AND ")).
 
 riaks2_conditions_filter(N,V) when V =:= true ->
@@ -315,19 +314,19 @@ create_schema(Conn, Type) ->
     {error, Reason} -> io:format("Failed to create schema:~p Reason:~p (Make sure ~p file exists.)~n", [Schema, Reason, "src/model/" ++ Schema  ++ ".xml"])
   end.
 
-create_search_index(Conn, Type) ->
+create_search_index(Conn, Type, Opts) ->
   Index = type_to_index(Type),
   Schema = type_to_schema(Type),
   case riakc_pb_socket:get_search_index(Conn, Index) of
     {error, <<"notfound">>} ->
-      riakc_pb_socket:create_search_index(Conn, Index, list_to_binary(Schema), [{n_val,3}]),
+      riakc_pb_socket:create_search_index(Conn, Index, list_to_binary(Schema), Opts),
       B = type_to_bucket_type_bucket(Type),
       case riakc_pb_socket:set_search_index(Conn, B, Index) of
         ok -> io:format("Search Index:~p is set~n",[Index]);
         {error, Reason} -> io:format("Failed to creat index:~p Reason:~p ~n", [Index, Reason])
       end;
     {ok, _} ->
-      io:format("Search Index:~p already exists~n",[Index]),
+      io:format("Search Index:~p already exists! If your schema has changed. You must remove index first~n",[Index]),
       ok
   end.
 
@@ -337,10 +336,13 @@ type_to_schema(Type) when is_list(Type) ->
   string:join([app_name(), "schema", Type],"_").
 
 setup_model(Model) when is_atom(Model) ->
+  setup_model(Model, []).
+
+setup_model(Model, Opts) when is_atom(Model) ->
   {ok, Conn} = riakc_pb_socket:start_link(?RS2_DB_HOST, ?RS2_DB_PORT),
   create_schema(Conn, Model),
   timer:sleep(1000),
-  create_search_index(Conn, Model),
+  create_search_index(Conn, Model, Opts),
   riakc_pb_socket:stop(Conn).
 
 
