@@ -3,7 +3,7 @@
 -export([init/1, terminate/1, start/1, stop/0, find/2, find/7]).
 -export([count/3, counter/2, incr/2, incr/3, delete/2, save_record/2]).
 -export([push/2, pop/2]).
--export([setup_model/1,setup_model/2]).
+-export([setup_model/1,setup_model/2, clear_index/1]).
 
 -define(LOG(Name, Value), lager:debug("DEBUG: ~s: ~p~n", [Name, Value])).
 
@@ -91,7 +91,9 @@ find(Conn, Type, Conditions, Max, Skip, Sort, SortOrder) ->
     end.
 
 get_keys(Conn, Cond, Index) ->
-    Conditions = riaks2_conditions(Cond, "*:*"),
+    io:format("Conditions:~p~n",[Cond]),
+    Conditions = build_search_query(Cond),
+    io:format("Query:~p~n",[Conditions]),
     {ok, Results} = riakc_pb_socket:search(Conn, Index, list_to_binary(Conditions),[]),
     Result = Results#search_results.docs,
     {ok, lists:map(fun ({_,X}) ->
@@ -164,14 +166,24 @@ type_to_bucket_name(Type) when is_atom(Type) ->
 type_to_bucket_name(Type) when is_list(Type) ->
     inflector:pluralize(Type).
 
+build_search_query(Conditions) when Conditions =:= [] ->
+    "*:*";
 build_search_query(Conditions) ->
     Terms = build_search_query(Conditions, []),
     string:join(Terms, " AND ").
 
 build_search_query([], Acc) ->
     lists:reverse(Acc);
+build_search_query([{Key, 'equals', Value}|Rest], Acc) when Value =:= true;Value =:= false;is_integer(Value) ->
+    build_search_query(Rest, [lists:concat([Key, ":", Value])|Acc]);
 build_search_query([{Key, 'equals', Value}|Rest], Acc) ->
     build_search_query(Rest, [lists:concat([Key, ":", quote_value(Value)])|Acc]);
+build_search_query([{Key, 'neq', Value}|Rest], Acc) when Value =:= true;Value =:= false;is_integer(Value) ->
+    build_search_query(Rest, [lists:concat(["NOT ", Key, ":", Value])|Acc]);
+build_search_query([{Key, 'neq', Value}|Rest], Acc) ->
+    build_search_query(Rest, [lists:concat(["NOT ", Key, ":", quote_value(Value)])|Acc]);
+build_search_query([{Key, 'not_equals', Value}|Rest], Acc) when Value =:= true;Value =:= false;is_integer(Value) ->
+    build_search_query(Rest, [lists:concat(["NOT ", Key, ":", Value])|Acc]);
 build_search_query([{Key, 'not_equals', Value}|Rest], Acc) ->
     build_search_query(Rest, [lists:concat(["NOT ", Key, ":", quote_value(Value)])|Acc]);
 build_search_query([{Key, 'in', Value}|Rest], Acc) when is_list(Value) ->
@@ -187,13 +199,13 @@ build_search_query([{Key, 'in', {Min, Max}}|Rest], Acc) ->
 build_search_query([{Key, 'not_in', {Min, Max}}|Rest], Acc) ->
     build_search_query(Rest, [lists:concat(["NOT ", Key, ":", "[", Min, " TO ", Max, "]"])|Acc]);
 build_search_query([{Key, 'gt', Value}|Rest], Acc) ->
-    build_search_query(Rest, [lists:concat([Key, ":", "{", Value, " TO ", ?HUGE_INT, "}"])|Acc]);
+    build_search_query(Rest, [lists:concat([Key, ":", "{", Value, " TO *}"])|Acc]);
 build_search_query([{Key, 'lt', Value}|Rest], Acc) ->
-    build_search_query(Rest, [lists:concat([Key, ":", "{", -?HUGE_INT, " TO ", Value, "}"])|Acc]);
+    build_search_query(Rest, [lists:concat([Key, ":", "{* TO ", Value, "}"])|Acc]);
 build_search_query([{Key, 'ge', Value}|Rest], Acc) ->
-    build_search_query(Rest, [lists:concat([Key, ":", "[", Value, " TO ", ?HUGE_INT, "]"])|Acc]);
+    build_search_query(Rest, [lists:concat([Key, ":", "[", Value, " TO *]"])|Acc]);
 build_search_query([{Key, 'le', Value}|Rest], Acc) ->
-    build_search_query(Rest, [lists:concat([Key, ":", "[", -?HUGE_INT, " TO ", Value, "]"])|Acc]);
+    build_search_query(Rest, [lists:concat([Key, ":", "[* TO ", Value, "]"])|Acc]);
 build_search_query([{Key, 'matches', Value}|Rest], Acc) ->
     build_search_query(Rest, [lists:concat([Key, ":", Value])|Acc]);
 build_search_query([{Key, 'not_matches', Value}|Rest], Acc) ->
@@ -275,37 +287,6 @@ bucket_type_bucket(Bucket) ->
 type_to_bucket_type_bucket(Type) ->
   bucket_type_bucket(list_to_binary(type_to_bucket_name(Type))).
 
-riaks2_conditions([], Acc) ->
-  Acc;
-riaks2_conditions([{FieldName,Operator,Value}|T], Acc) when is_atom(FieldName) ->
-  riaks2_conditions([{atom_to_list(FieldName),Operator,Value}|T], Acc);
-riaks2_conditions([{FieldName,Operator,FieldValue}|T], Acc) when Operator =:= equals, is_list(FieldName) ->
-  Cond = riaks2_conditions_filter(FieldName, FieldValue),
-  riaks2_conditions(T, string:join([Acc,Cond]," AND ")).
-
-riaks2_conditions_filter(N,V) when V =:= true ->
-  string:join([N,"true"],":");
-riaks2_conditions_filter(N,V) when V =:= false ->
-  string:join([N,"false"],":");
-riaks2_conditions_filter(N,V) when is_list(V) ->
-  V2 = "\"" ++ V ++ "\"",
-  string:join([N,V2],":");
-riaks2_conditions_filter(N,V) when is_integer(V) ->
-  string:join([N,integer_to_list(V)],":").
-
-filter_riaks2_records([H|T], Acc) ->
-  {Prop, Value} = H,
-  case Prop of
-    <<"_yz_rb">> -> filter_riaks2_records(T,Acc);
-    <<"_yz_rt">> -> filter_riaks2_records(T,Acc);
-    <<"_yz_rk">> -> filter_riaks2_records(T,Acc);
-    <<"_yz_id">> -> filter_riaks2_records(T,Acc);
-    <<"score">>  -> filter_riaks2_records(T,Acc);
-    _            -> filter_riaks2_records(T,lists:append(Acc, [H]))
-  end.
-
-
-
 create_schema(Conn, Type) ->
   Schema = type_to_schema(Type),
   {ok, SchemaData} = file:read_file("src/model/" ++ Schema  ++ ".xml"),
@@ -345,6 +326,14 @@ setup_model(Model, Opts) when is_atom(Model) ->
   create_search_index(Conn, Model, Opts),
   riakc_pb_socket:stop(Conn).
 
-
-
-
+clear_index(Model) when is_atom(Model) ->
+  {ok, Conn} = riakc_pb_socket:start_link(?RS2_DB_HOST, ?RS2_DB_PORT),
+  Bucket = type_to_bucket_type_bucket(Model),
+  BucketProps = [{search_index, <<"_dont_index_">>}],
+  riakc_pb_socket:set_bucket(Conn, Bucket, BucketProps),
+  io:format("Clear bucket property search index~n"),
+  timer:sleep(1000),
+  Index = type_to_index(Model),
+  riakc_pb_socket:delete_search_index(Conn, Index), 
+  io:format("Delete search index..Done!~n"),
+  riakc_pb_socket:stop(Conn).
