@@ -14,7 +14,7 @@ Configure
 ---------
 1. Install extractor
 
-Basically an erlang proplist extractor as Riak is written in Erlang. If you look at the attractor, it looks natural.
+It is an erlang proplist extractor.
 
         Compile the boss_model_extractor.erl into .beam file
         Move it to /opt/beams/
@@ -36,27 +36,33 @@ Basically an erlang proplist extractor as Riak is written in Erlang. If you look
         -define(RS2_DB_HOST, "127.0.0.1").
         -define(RS2_DB_PORT, 8087).
     
-        %% Bucket type (You can change this to your app name)
+        %% Bucket type (You can change this to anything you want)
         -define(RS2_BUCKET_TYPE, <<"default">>).
 
-If you are not using default bucket type, you need to create and activate it from command line as well.
+Create your own bucket type if you need
 
         $> riak-admin bucket-type create customtype
         $> riak-admin bucket-type activate customtype
 
+Set your own n_val if you have to
+
+        $> riak-admin bucket-type create customtype '{"props":{"n_val":5}}'
+
+But whatever n_val is, if it's not default 3, you have run setup_model/2 instead of setup_model/1 later.
+
 Create Boss Model
 -----------------
-1. Create model like usual
+1. Create boss model
 2. Create a schema file under same folder(src/model/): <appname>_schema_<model>.xml
 
         Example:"src/model/todoriak_schema_comment.xml"
 
         <?xml version="1.0" encoding="UTF-8" ?>
-        <schema name="todoriak_schema_comment" version="1.5">
+        <schema name="todoriak_schema_rating" version="1.5">
           <fields>
             <!-- comment model fields -->
             <field name="user_id" type="string" indexed="true" stored="true" multiValued="false"/>
-            <field name="content" type="string" indexed="true" stored="true" multiValued="false"/>
+            <field name="sore" type="int" indexed="true" stored="true" multiValued="false"/>
             <field name="published" type="boolean" indexed="true" stored="true" multiValued="false"/>
             <field name="created" type="date" indexed="true" stored="true" multiValued="false"/>
             
@@ -85,6 +91,7 @@ Create Boss Model
             <fieldType name="string" class="solr.StrField" sortMissingLast="true" />
             <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
             <fieldType name="date" class="solr.TrieDateField"/>
+            <fieldType name="int" class="solr.TrieIntField" precisionStep="0" positionIncrementGap="0"/>
             
             <!-- Required -->
             <fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
@@ -94,14 +101,17 @@ Create Boss Model
 
 3. Setup Model
 
-    Run this in boss console on each model:
+    Run this in boss console for each model, <model> is atom:
+        # if your n_val on the bucket is default 3
+        > boss_db_adapter_riaks2:setup_model(<model>)
+        
+        # If your n_val is not default 3
+        > boss_db_adapter_riaks2:setup_mode(<model>, [{n_val,5}]).
 
-        > boss_db_adapter_riaks2:setup_model(<model>) <model> = atom()
-
-Step 3 will 
-* register your schema file, 
-* create index based on the schema and 
-* set the search index on the bucket associated to the model.
+This will 
+* register schema file
+* create index based on the schema and n_val
+* set the search index on the bucket associated to the model
 
 Verify
 ------
@@ -109,7 +119,7 @@ Verify
     http://127.0.0.1:8098/search/index/<appname>_<model>_idx ( After you have saved something ) # index exists
     http://127.0.0.1:8098/types/<application>_main/buckets/<bucket>/props (<bucket> is the plural form of <model>) # verify index is set on bucket
 
-Done! Now you can use boss_db module now.
+Done! Now you can use boss_db module.
 
 Other information
 -----------------
