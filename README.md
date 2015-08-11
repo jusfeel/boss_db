@@ -116,6 +116,9 @@ Create Boss Model
         # If your n_val is not default 3
         > boss_db_adapter_riaks2:setup_mode(<model>, [{n_val,5}]).
 
+        # If you did it wrong, you can clear the index
+        > boss_db_adapter_riaks2:clear_index(<model>)
+
 This will 
 * register schema file
 * create index based on the schema and n_val
