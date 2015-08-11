@@ -14,6 +14,8 @@ Configure
 ---------
 1. Install extractor
 
+Basically an erlang proplist extractor as Riak is written in Erlang. If you look at the attractor, it looks natural.
+
         Compile the boss_model_extractor.erl into .beam file
         Move it to /opt/beams/
         Edit advanced.config to add the path
