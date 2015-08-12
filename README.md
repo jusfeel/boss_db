@@ -104,22 +104,26 @@ Create Boss Model
         
         </schema>
 
-3. Setup Model
+3. Setup Model & Re-indexing Model Records
 
     Run this in boss console for each model:
     
-        # if your n_val on the bucket is default 3
+        #1 if your n_val on the bucket is default 3
         > boss_db_adapter_riaks2:setup_model(<model>)
         
-        # If your n_val is not default 3
+        #2 If your n_val is not default 3
         > boss_db_adapter_riaks2:setup_mode(<model>, [{n_val, 1}]).
 
-        # If you did it wrong, you can clear the index
+        #3 If you did it wrong, you can clear the index
         > boss_db_adapter_riaks2:clear_index(<model>)
 
-        # Re-index all all existing records of the model
+        #4 Re-index all all existing records of the model
         # new field value will be "undefined"
         > boss_db_adapter_riaks2:reindex(<model>) 
+
+        # Force reindex ( Delete previous one #3 -> #1/2 -> #4 )
+        > boss_db_adapter_riaks2:re_index(<model>)
+        > boss_db_adapter_riaks2:re_index(<model>, [{n_val, 1}]).
 
 This will 
 * register schema file

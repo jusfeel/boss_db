@@ -3,7 +3,7 @@
 -export([init/1, terminate/1, start/1, stop/0, find/2, find/7]).
 -export([count/3, counter/2, incr/2, incr/3, delete/2, save_record/2]).
 -export([push/2, pop/2]).
--export([setup_model/1, setup_model/2, clear_index/1, reindex/1]).
+-export([setup_model/1, setup_model/2, clear_index/1, reindex/1, re_index/1, re_index/2]).
 
 -define(LOG(Name, Value), lager:debug("DEBUG: ~s: ~p~n", [Name, Value])).
 
@@ -359,7 +359,15 @@ reindex(Model) when is_atom(Model) ->
   io:format("Done!~n"),
   riakc_pb_socket:stop(Conn).
 
+re_index(Model) ->
+  re_index(Model, []).
 
+re_index(Model, Opts) ->
+  clear_index(Model),
+  timer:sleep(2000),
+  setup_model(Model, Opts),
+  timer:sleep(2000),
+  reindex(Model).
 
 
 
