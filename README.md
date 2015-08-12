@@ -111,13 +111,17 @@ Create Boss Model
     Run this in boss console for each model:
     
         # if your n_val on the bucket is default 3
-        > boss_db_adapter_riaks2:setup_model(<model>)   # <model> is atom
+        > boss_db_adapter_riaks2:setup_model(<model>)
         
         # If your n_val is not default 3
-        > boss_db_adapter_riaks2:setup_mode(<model>, [{n_val,5}]).
+        > boss_db_adapter_riaks2:setup_mode(<model>, [{n_val, 1}]).
 
         # If you did it wrong, you can clear the index
         > boss_db_adapter_riaks2:clear_index(<model>)
+
+        # Re-index all all existing records of the model
+        # new field value will be "undefined"
+        > boss_db_adapter_riaks2:reindex(<model>) 
 
 This will 
 * register schema file

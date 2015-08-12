@@ -3,7 +3,7 @@
 -export([init/1, terminate/1, start/1, stop/0, find/2, find/7]).
 -export([count/3, counter/2, incr/2, incr/3, delete/2, save_record/2]).
 -export([push/2, pop/2]).
--export([setup_model/1,setup_model/2, clear_index/1]).
+-export([setup_model/1, setup_model/2, clear_index/1, reindex/1]).
 
 -define(LOG(Name, Value), lager:debug("DEBUG: ~s: ~p~n", [Name, Value])).
 
@@ -317,9 +317,13 @@ type_to_schema(Type) when is_atom(Type) ->
 type_to_schema(Type) when is_list(Type) ->
   string:join([app_name(), "schema", Type],"_").
 
+setup_model(Model) when is_list(Model) ->
+  setup_model(list_to_atom(Model));
 setup_model(Model) when is_atom(Model) ->
   setup_model(Model, []).
 
+setup_model(Model, Opts) when is_list(Model) ->
+  setup_model(list_to_atom(Model), Opts);
 setup_model(Model, Opts) when is_atom(Model) ->
   {ok, Conn} = riakc_pb_socket:start_link(?RS2_DB_HOST, ?RS2_DB_PORT),
   create_schema(Conn, Model),
@@ -327,6 +331,8 @@ setup_model(Model, Opts) when is_atom(Model) ->
   create_search_index(Conn, Model, Opts),
   riakc_pb_socket:stop(Conn).
 
+clear_index(Model) when is_list(Model) ->
+  clear_index(list_to_atom(Model));
 clear_index(Model) when is_atom(Model) ->
   {ok, Conn} = riakc_pb_socket:start_link(?RS2_DB_HOST, ?RS2_DB_PORT),
   Bucket = type_to_bucket_type_bucket(Model),
@@ -338,3 +344,34 @@ clear_index(Model) when is_atom(Model) ->
   riakc_pb_socket:delete_search_index(Conn, Index), 
   io:format("Delete search index..Done!~n"),
   riakc_pb_socket:stop(Conn).
+
+reindex(Model) when is_list(Model) ->
+  reindex(list_to_atom(Model));
+reindex(Model) when is_atom(Model) ->
+  Update = fun (RiakKey) ->
+             K = lists:concat([Model, "-", binary_to_list(RiakKey)]), 
+             Record = boss_db:find(K),
+             Record:save()
+           end,
+  {ok, Conn} = riakc_pb_socket:start_link(?RS2_DB_HOST, ?RS2_DB_PORT),
+  Bucket = type_to_bucket_type_bucket(Model),
+  {ok, Keys} = riakc_pb_socket:list_keys(Conn, Bucket),
+  io:format("Re-index ~p ~p record(s)..~n", [length(Keys), Model]),
+  lists:map(Update, Keys),
+  io:format("Done!~n"),
+  riakc_pb_socket:stop(Conn).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
