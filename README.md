@@ -7,15 +7,16 @@ Make sure this in rebar.config
 
 {riakc,         ".*",   {git, "git://github.com/basho/riak-erlang-client.git", {tag, "2.1.1"}}},
 
-Limitations
-----------
-* Your application needs to be the head of the applications property in boss.config
-* Install extractor first manually
-* Single bucket type per application
-* Index is auto-generated per bucket following a name convention
-* Schema must be manually created follow a file name convention
+Limitations Imposed
+-------------------
+* Your application needs to be at the head of the applications list in boss.config so the bucket type can be inferred
+* You need to compile and install erlang proplist extractor first manually
+* Only use a single bucket type with the same name as your application name per application, so choose name carefully
+* Index name is set per bucket following a name convention by inferring from bucket type and bucket name
+* Schema xml must be manually created following a similar convention
+* Since the above, index on bucket type has no meaning and solr query syntax is limited by boss_db 
 
-The first limitation is because I don't know how to the get your application name property so I have to interrogate boss env by hd(boss_env:get_env(applications,[])). Please let me know if you know how.
+Let me know if you have a better way to get application name.
 
 Configure
 ---------
@@ -43,19 +44,16 @@ It is an erlang proplist extractor.
         -define(RS2_DB_HOST, "127.0.0.1").
         -define(RS2_DB_PORT, 8087).
     
-        %% Bucket type (You can change this to anything you want)
-        -define(RS2_BUCKET_TYPE, <<"default">>).
+Create your the bucket type manually
 
-Create your own bucket type if you need
-
-        $> riak-admin bucket-type create customtype
-        $> riak-admin bucket-type activate customtype
+        $> riak-admin bucket-type create <application_name>
+        $> riak-admin bucket-type activate <application_name>
 
 Set your own n_val if you have to
 
-        $> riak-admin bucket-type create customtype '{"props":{"n_val":5}}'
+        $> riak-admin bucket-type create <applcation_name> '{"props":{"n_val":1}}'
 
-But whatever n_val is, if it's not default 3, you have run setup_model/2 instead of setup_model/1 later.
+But whatever n_val is, if it's not the default 3, you have run setup_model/2 instead of setup_model/1 later.
 
 Create Boss Model
 -----------------

@@ -10,10 +10,8 @@
 -define(HUGE_INT, 1000 * 1000 * 1000 * 1000).
 
 -include("riakc.hrl").
-
 -define(RS2_DB_HOST, "127.0.0.1").
 -define(RS2_DB_PORT, 8087).
--define(RS2_BUCKET_TYPE, <<"todoriak">>).
 
 start(_) ->
     ok.
@@ -283,7 +281,7 @@ app_name() ->
   atom_to_list(hd(boss_env:get_env(applications,[]))).
 
 bucket_type_bucket(Bucket) ->
-  {?RS2_BUCKET_TYPE, Bucket}.
+  {list_to_binary(app_name()), Bucket}.
 
 type_to_bucket_type_bucket(Type) ->
   bucket_type_bucket(list_to_binary(type_to_bucket_name(Type))).
