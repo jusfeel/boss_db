@@ -53,7 +53,7 @@ It is an erlang proplist extractor.
         -define(RS2_DB_HOST, "127.0.0.1").
         -define(RS2_DB_PORT, 8087).
     
-Create your the bucket type manually
+Create your the bucket type manually (using default n_val)
 
         $> riak-admin bucket-type create <application_name>
         $> riak-admin bucket-type activate <application_name>
@@ -150,7 +150,7 @@ Verify
 ------
     http://127.0.0.1:8098/search/schema/<appname>_schema_<model> # schema is registered
     http://127.0.0.1:8098/search/index/<appname>_<model>_idx ( After you have saved something ) # index exists
-    http://127.0.0.1:8098/types/<application>_main/buckets/<bucket>/props (<bucket> is the plural form of <model>) # verify index is set on bucket
+    http://127.0.0.1:8098/types/<appname>/buckets/<bucket_name>/props (<bucket_name> is the plural form of <model>) # verify index is set on bucket
 
 Done! Now you can use boss_db module.
 
