@@ -106,13 +106,13 @@ Create Boss Model
             <fieldType name="date" class="solr.TrieDateField"/>
             <fieldType name="int" class="solr.TrieIntField" precisionStep="0" positionIncrementGap="0"/>
             
-  	    <!-- Analyzed fields -->
+            <!-- Analyzed fields -->
             <fieldType name="string_lc" class="solr.TextField">
-	      <analyzer>
-	        <tokenizer class="solr.StandardTokenizerFactory"/>
-	        <filter class="solr.LowerCaseFilterFactory"/>
-	      </analyzer>      
-	    </fieldType>
+                <analyzer>
+                        <tokenizer class="solr.StandardTokenizerFactory"/>
+                        <filter class="solr.LowerCaseFilterFactory"/>
+                </analyzer>
+            </fieldType>
   
             <!-- Required -->
             <fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
