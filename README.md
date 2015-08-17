@@ -9,14 +9,23 @@ Make sure this in rebar.config
 
 Limitations Imposed
 -------------------
-* Your application needs to be at the head of the applications list in boss.config so the bucket type can be inferred
-* You need to compile and install erlang proplist extractor first manually
-* Only use a single bucket type with the same name as your application name per application, so choose name carefully
-* Index name is set per bucket following a name convention by inferring from bucket type and bucket name
-* Schema xml must be manually created following a similar convention
-* Since the above, index on bucket type has no meaning and solr query syntax is limited by boss_db 
+* Your application needs to be at the head of the applications list in boss.config so the bucket type can be inferred as the name of your application
+* You need to create and activate the bucket type yourself
+* You need to compile and install erlang proplist extractor first manually. You can find the file at the root directory.
+* There will be only one bucket type available to your application like one database.
+* Index name is set per bucket and it follows a naming convention <appname>_<model>_idx
+* Schema xml file must be manually created and it follows a naming convention <appname>_schema_<model>.xml
+* Because of the above deficiencies, index being set on bucket type level is not supported and the powerful solr query syntax is limited by current implementation of boss_db module.
 
-Let me know if you have a better way to get application name.
+Let me know if you have a better way to find out which application is using the adapter at run time. I am interrogating boss_env which feels fragile.
+
+Supported Solr Field Types
+-------------------------
+string
+string_lc:lower case
+boolean
+int
+date
 
 Configure
 ---------
@@ -91,13 +100,20 @@ Create Boss Model
           <types>
             <!-- YZ String: Used for non-analyzed fields -->
             <fieldType name="_yz_str" class="solr.StrField" sortMissingLast="true" />
-          
-            <!-- Analyzed fields -->
+
             <fieldType name="string" class="solr.StrField" sortMissingLast="true" />
             <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
             <fieldType name="date" class="solr.TrieDateField"/>
             <fieldType name="int" class="solr.TrieIntField" precisionStep="0" positionIncrementGap="0"/>
             
+  	    <!-- Analyzed fields -->
+            <fieldType name="string_lc" class="solr.TextField">
+	      <analyzer>
+	        <tokenizer class="solr.StandardTokenizerFactory"/>
+	        <filter class="solr.LowerCaseFilterFactory"/>
+	      </analyzer>      
+	    </fieldType>
+  
             <!-- Required -->
             <fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
           </types>
