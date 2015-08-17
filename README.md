@@ -13,14 +13,8 @@ Limitations Imposed
 * You need to create and activate the bucket type yourself
 * You need to compile and install erlang proplist extractor first manually. You can find the file at the root directory.
 * There will be only one bucket type available to your application like one database.
-* Index name is set per bucket and it follows a naming convention
-
-    <appname>_<model>_idx
-
-* Schema xml file must be manually created and it follows a naming convention
-
-    <appname>_schema_<model>.xml
-
+* Index name is set per bucket and it follows a naming convention "&lt;appname&gt;_&lt;model&gt;_idx"
+* Schema xml file must be manually created and it follows a naming convention "&lt;appname&gt;_schema_&lt;model&gt;.xml"
 * Because of the above deficiencies, index being set on bucket type level is not supported and the powerful solr query syntax is limited by current implementation of boss_db module.
 
 Let me know if you have a better way to find out which application is using the adapter at run time. I am interrogating boss_env which feels fragile.
