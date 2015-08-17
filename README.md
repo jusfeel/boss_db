@@ -108,10 +108,10 @@ Create Boss Model
             
             <!-- Analyzed fields -->
             <fieldType name="string_lc" class="solr.TextField">
-                <analyzer>
-                        <tokenizer class="solr.StandardTokenizerFactory"/>
-                        <filter class="solr.LowerCaseFilterFactory"/>
-                </analyzer>
+              <analyzer>
+                <tokenizer class="solr.StandardTokenizerFactory"/>
+                <filter class="solr.LowerCaseFilterFactory"/>
+              </analyzer>
             </fieldType>
   
             <!-- Required -->
