@@ -65,35 +65,32 @@ find_acc(Conn, Prefix, [Id | Rest], Acc) ->
 
 find(Conn, Type, Conditions, Max, Skip, Sort, SortOrder) ->
     Index = type_to_index(Type),
-    {ok, Keys} = get_keys(Conn, Conditions, Index),
-    Records = find_acc(Conn, atom_to_list(Type) ++ "-", Keys, []),
-    %io:format("##[Max:~p,Skip:~p,Sort:~p,SortOrder:~p]~n",[Max, Skip, Sort, SortOrder]),
-    %io:format("Records:~p~n",[Records]),
-    Sorted = if
-        Sort =:= id -> Records;
-        is_atom(Sort) ->
-            lists:sort(fun (A, B) ->
-                        case SortOrder of
-                            ascending  -> A:Sort() =< B:Sort();
-                            descending -> A:Sort() > B:Sort()
-                        end
-                end,
-                Records);
-        true -> Records
-    end,
-    case Max of
-        all -> lists:nthtail(Skip, Sorted);
-        Max when Skip < length(Sorted) ->
-            lists:sublist(Sorted, Skip + 1, Max);
-        _ ->
-            []
-    end.
+    Options = get_search_options(Max, Skip, Sort, SortOrder),
+    %io:format("Options:~p~n", [Options]),
+    {ok, Keys} = get_keys(Conn, Conditions, Index, Options),
+    find_acc(Conn, atom_to_list(Type) ++ "-", Keys, []).
 
-get_keys(Conn, Cond, Index) ->
+get_search_options(Max, Skip, Sort, SortOrder) ->
+  case Max of
+    all -> RowsOp = {rows, 300};
+    Max -> RowsOp = {rows, Max}
+  end,
+  StartOp = {start, Skip},
+  if Sort =/= id ->
+	 		 case SortOrder of
+	 			 ascending -> SortOp = [{sort, atom_to_list(Sort) ++ " asc"}];
+		 		 descending -> SortOp = [{sort, atom_to_list(Sort) ++ " desc"}]
+			 end;
+     true ->
+       SortOp = []
+  end,
+  lists:append([StartOp, RowsOp], SortOp).
+
+get_keys(Conn, Cond, Index, Options) ->
     io:format("Conditions:~p~n",[Cond]),
     Conditions = build_search_query(Cond),
     io:format("Query:~p~n",[Conditions]),
-    {ok, Results} = riakc_pb_socket:search(Conn, Index, list_to_binary(Conditions),[]),
+    {ok, Results} = riakc_pb_socket:search(Conn, Index, list_to_binary(Conditions), Options),
     Result = Results#search_results.docs,
     {ok, lists:map(fun ({_,X}) ->
 			   proplists:get_value(<<"_yz_rk">>, X)
