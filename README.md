@@ -1,13 +1,16 @@
 ChicagoBoss Riak Search 2.0 DB Adapter(Not Finished)
 =====================================
 
+This adapter is trying to enable Riak Search 2.0 Solr-based search available in ChicagoBoss. Because Solr needs schema XML files for understanding the data structure, the schema files need to be manually created. But this adapter tried to automate the rest work as much as possible, for example, create index, register schmea, set index on a bucket etc.  
+
+
 Using https://github.com/basho/riak-erlang-client/tree/2.1.1
 
 Make sure this in rebar.config
 
 {riakc,         ".*",   {git, "git://github.com/basho/riak-erlang-client.git", {tag, "2.1.1"}}},
 
-Limitations Imposed
+Limitations
 -------------------
 * Your application needs to be at the head of the applications list in boss.config so the bucket type can be inferred as the name of your application
 * You need to create and activate the bucket type yourself
@@ -23,6 +26,7 @@ Supported Solr Field Types
 -------------------------
 string
 string_lc:lower case
+float
 boolean
 int
 date
