@@ -11,7 +11,8 @@ Make sure this in rebar.config
 {riakc,         ".*",   {git, "git://github.com/basho/riak-erlang-client.git", {tag, "2.1.1"}}},
 
 Limitations
--------------------
+-------------
+$ Solr rows defaultly returns 10 records, I hard-code 10 million maximum if you did not give a limit
 * Your application needs to be at the head of the applications list in boss.config so the bucket type can be inferred as the name of your application
 * You need to create and activate the bucket type yourself
 * You need to compile and install erlang proplist extractor first manually. You can find the file at the root directory.

@@ -70,16 +70,24 @@ find(Conn, Type, Conditions, Max, Skip, Sort, SortOrder) ->
     {ok, Keys} = get_keys(Conn, Conditions, Index, Options),
     find_acc(Conn, atom_to_list(Type) ++ "-", Keys, []).
 
+get_count(Conn, Type, Conditions, Max, Skip, Sort, SortOrder) ->
+  Index = type_to_index(Type),
+  Options = get_search_options(Max, Skip, Sort, SortOrder),
+  Query = build_search_query(Conditions),
+  {ok, Results} = riakc_pb_socket:search(Conn, Index, list_to_binary(Query), Options), 
+  Results#search_results.num_found.
+
 get_search_options(Max, Skip, Sort, SortOrder) ->
   case Max of
-    all -> RowsOp = {rows, 300};
+    all -> RowsOp = {rows, 10000000};
     Max -> RowsOp = {rows, Max}
   end,
   StartOp = {start, Skip},
-  if Sort =/= id ->
+  if Sort =/= id, Sort =/= 0 ->
 	 		 case SortOrder of
 	 			 ascending -> SortOp = [{sort, atom_to_list(Sort) ++ " asc"}];
-		 		 descending -> SortOp = [{sort, atom_to_list(Sort) ++ " desc"}]
+		 		 descending -> SortOp = [{sort, atom_to_list(Sort) ++ " desc"}];
+         _ -> SortOp = []
 			 end;
      true ->
        SortOp = []
@@ -98,7 +106,7 @@ get_keys(Conn, Cond, Index, Options) ->
 
 % this is a stub just to make the tests runable
 count(Conn, Type, Conditions) ->
-    length(find(Conn, Type, Conditions, all, 0, 0, 0)).
+  get_count(Conn, Type, Conditions, all, 0, 0, 0).
 
 counter(_Conn, _Id) ->
     {error, notimplemented}.
@@ -253,7 +261,7 @@ riak_search_encode_key(K) ->
     list_to_binary(atom_to_list(K)).
 
 riak_search_encode_value(V) when is_list(V) ->
-    list_to_binary(V);
+  list_to_binary(V);
 riak_search_encode_value(V) ->
     V.
 
@@ -264,7 +272,7 @@ riak_search_decode_key(K) ->
     list_to_atom(binary_to_list(K)).
 
 riak_search_decode_value(V) when is_binary(V) ->
-    binary_to_list(V);
+  binary_to_list(V);
 riak_search_decode_value(V) ->
     V.
 
