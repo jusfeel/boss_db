@@ -1,27 +1,23 @@
 ChicagoBoss Riak Search 2.0 DB Adapter(Not Finished)
 =====================================
 
-This adapter is trying to enable Riak Search 2.0 Solr-based search available in ChicagoBoss. Because Solr needs schema XML files for understanding the data structure, the schema files need to be manually created. But this adapter tried to automate the rest work as much as possible, for example, create index, register schmea, set index on a bucket etc.  
+This adapter is trying to enable Riak Search 2.0 (Solr-based search) in ChicagoBoss. Because Solr needs schema XML files for understanding the data structure, the schema files need to be manually created. So this adapter tried to automate the work of that as much as possible, such as register schmea, create and set index on a bucket etc. Each boss model would be a bucket. The application would be the bucket type containing all the bucket. The drawback as Basho expert told me is that the index would be slow to be set on a bucket if not a bucket type. The more such bucket with custom index on it, the slower. The trade-off is my motivation as well which is that I can use boss_db.
 
 
-Using https://github.com/basho/riak-erlang-client/tree/2.1.1
+This is needed: https://github.com/basho/riak-erlang-client/tree/2.1.1
 
-Make sure this in rebar.config
+Make sure it is in rebar.config under boss_db
 
 {riakc,         ".*",   {git, "git://github.com/basho/riak-erlang-client.git", {tag, "2.1.1"}}},
 
-Limitations
+You Are Warned
 -------------
-$ Solr rows defaultly returns 10 records, I hard-code 10 million maximum if you did not give a limit
-* Your application needs to be at the head of the applications list in boss.config so the bucket type can be inferred as the name of your application
-* You need to create and activate the bucket type yourself
-* You need to compile and install erlang proplist extractor first manually. You can find the file at the root directory.
-* There will be only one bucket type available to your application like one database.
+* Solr rows defaultly returns 10 records only, so I hard-code 10 million maximum if you did not give a limit
+* Make sure you follow the configuration below - it is quite easy but not simple - too many factors in play.
+* You need to create and activate the bucket type before everything else, set allow_mult to false 
+* You need to register extractor into riak. You can find the file at the root directory.
 * Index name is set per bucket and it follows a naming convention "&lt;appname&gt;_&lt;model&gt;_idx"
 * Schema xml file must be manually created and it follows a naming convention "&lt;appname&gt;_schema_&lt;model&gt;.xml"
-* Because of the above deficiencies, index being set on bucket type level is not supported and the powerful solr query syntax is limited by current implementation of boss_db module.
-
-Let me know if you have a better way to find out which application is using the adapter at run time. I am interrogating boss_env which feels fragile.
 
 Supported Solr Field Types
 -------------------------
@@ -50,7 +46,21 @@ It is an erlang proplist extractor.
             ...
         ].
         
-        Restart node
+        Restart riak
+
+        $>riak attach
+        $>yz_extractor:register("application/chicagobossmodel", boss_model_extractor).
+      
+        You should see all the registered extractor.
+
+        In your boss.config, make sure:
+  
+        {db_adapter, riaks2},
+        {riaks2_rt, "appname"},
+        {riaks2_schema_prefix, "appname"},
+
+        riaks2_rt is bucket type you created. riaks2_schema_prefix is the prefix for the schema file.
+        If your model is player, your schema file is appname_schema_player.xml in the src/model directory
    
 2. Make sure your the adapter has the correct macro
 
@@ -62,22 +72,26 @@ Create your the bucket type manually (using default n_val)
 
         $> riak-admin bucket-type create <application_name>
         $> riak-admin bucket-type activate <application_name>
-
+      
 Set your own n_val if you have to
 
         $> riak-admin bucket-type create <applcation_name> '{"props":{"n_val":1}}'
 
 But whatever n_val is, if it's not the default 3, you have run setup_model/2 instead of setup_model/1 later.
 
-Create Boss Model
------------------
-1. Create boss model
-2. Create a schema file under same folder(src/model/): <appname>_schema_<model>.xml
+And
+        $> riak-admin bucket-type update <bucket_type> '{"props":{"allow_mult":false}}'
 
-        Example:"src/model/todoriak_schema_rating.xml"
+
+2. Create Boss Model
+-----------------
+2.1. Create boss model
+2.2. Create a schema file under same folder(src/model/): <appname>_schema_<model>.xml
+
+        Example:"src/model/appname_schema_rating.xml"
 
         <?xml version="1.0" encoding="UTF-8" ?>
-        <schema name="todoriak_schema_rating" version="1.5">
+        <schema name="appname_schema_rating" version="1.5">
           <fields>
             <!-- comment model fields -->
             <field name="user_id" type="string" indexed="true" stored="true" multiValued="false"/>

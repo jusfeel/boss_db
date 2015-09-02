@@ -3,7 +3,7 @@
 -export([init/1, terminate/1, start/1, stop/0, find/2, find/7]).
 -export([count/3, counter/2, incr/2, incr/3, delete/2, save_record/2]).
 -export([push/2, pop/2]).
--export([setup_model/1, setup_model/2, clear_index/1, reindex/1, re_index/1, re_index/2]).
+-export([setup_model/1, setup_model/2, clear_index/1, reindex/1, re_index/1, re_index/2, create_schema/2, create_search_index/3, add_search_index/3, set_search_index/2]).
 
 -define(LOG(Name, Value), lager:debug("DEBUG: ~s: ~p~n", [Name, Value])).
 
@@ -29,7 +29,7 @@ terminate(Conn) ->
 
 find(Conn, Id) ->
     {Type, Bucket, Key} = infer_type_from_id(Id),
-    Socket = riakc_pb_socket:get(Conn, bucket_type_bucket(Bucket), Key),
+    Socket = riakc_pb_socket:get(Conn, Bucket, Key),
     query_riak_socket(Id, Type, Socket).
 
 query_riak_socket(Id, Type, _Socket = {ok, Res} ) ->
@@ -95,9 +95,9 @@ get_search_options(Max, Skip, Sort, SortOrder) ->
   lists:append([StartOp, RowsOp], SortOp).
 
 get_keys(Conn, Cond, Index, Options) ->
-    io:format("Conditions:~p~n",[Cond]),
+    %io:format("Raw Conditions:~p~n",[Cond]),
     Conditions = build_search_query(Cond),
-    io:format("Query:~p~n",[Conditions]),
+    %io:format("Query:Index(~p) Conditions(~p), Options:(~p)~n",[Index, Conditions, Options]),
     {ok, Results} = riakc_pb_socket:search(Conn, Index, list_to_binary(Conditions), Options),
     Result = Results#search_results.docs,
     {ok, lists:map(fun ({_,X}) ->
@@ -119,7 +119,7 @@ incr(_Conn, _Id, _Count) ->
 
 delete(Conn, Id) ->
     {_Type, Bucket, Key} = infer_type_from_id(Id),
-    ok = riakc_pb_socket:delete(Conn, bucket_type_bucket(Bucket), Key).
+    ok = riakc_pb_socket:delete(Conn, Bucket, Key).
 
 %The call riakc_obj:new(Bucket::binary(),'undefined',PropList::[{binary(),_}]) 
 % will never return since the success typing is
@@ -128,7 +128,7 @@ delete(Conn, Id) ->
 % (bucket(),key(),value()) -> riakc_obj()
 save_record(Conn, Record) ->
     Type = element(1, Record),
-    Bucket = type_to_bucket_type_bucket(Type),
+    Bucket = type_to_bucket(Type),
     PropList = [{riak_search_encode_key(K), riak_search_encode_value(V)} || {K, V} <- Record:attributes(), K =/= id],
     RiakKey = case Record:id() of
         id -> % New entry
@@ -163,7 +163,7 @@ infer_type_from_id(Id) when is_list(Id) ->
 
 % Find bucket name from Boss type
 type_to_bucket(Type) ->
-    list_to_binary(type_to_bucket_name(Type)).
+    {list_to_binary(bucket_type()), list_to_binary(type_to_bucket_name(Type))}.
 
 type_to_bucket_name(Type) when is_atom(Type) ->
     type_to_bucket_name(atom_to_list(Type));
@@ -280,45 +280,61 @@ riak_search_decode_value(V) ->
 type_to_index(Type) when is_atom(Type) ->
   type_to_index(atom_to_list(Type));
 type_to_index(Type) when is_list(Type) ->
-  list_to_binary(string:join([app_name(),Type,"idx"],"_")).
+  list_to_binary(string:join([bucket_type(),Type,"idx"],"_")).
 
-app_name() ->
-  atom_to_list(hd(boss_env:get_env(applications,[]))).
+bucket_type() ->
+  boss_env:get_env(riaks2_rt,[]).
 
-bucket_type_bucket(Bucket) ->
-  {list_to_binary(app_name()), Bucket}.
-
-type_to_bucket_type_bucket(Type) ->
-  bucket_type_bucket(list_to_binary(type_to_bucket_name(Type))).
+schema_prefix() ->
+  case boss_env:get_env(riaks2_schema_prefix,[]) of
+    undefined                   -> bucket_type();
+    Prefix when is_list(Prefix) -> Prefix;
+    Prefix when is_atom(Prefix) -> list_to_atom(Prefix)
+  end.
 
 create_schema(Conn, Type) ->
   Schema = type_to_schema(Type),
-  {ok, SchemaData} = file:read_file("src/model/" ++ Schema  ++ ".xml"),
-  case riakc_pb_socket:create_search_schema(Conn, list_to_binary(Schema), SchemaData) of
-    ok -> io:format("Schema is created and registered:~p ~n", [Schema]);
-    {error, Reason} -> io:format("Failed to create schema:~p Reason:~p (Make sure ~p file exists.)~n", [Schema, Reason, "src/model/" ++ Schema  ++ ".xml"])
+  case file:read_file("src/model/" ++ Schema  ++ ".xml") of
+    {error, R} -> io:format("~p not exist~n", [Schema]), {error, R};
+    {ok, SchemaData} ->  
+			case riakc_pb_socket:create_search_schema(Conn, list_to_binary(Schema), SchemaData) of
+				ok -> io:format("Schema is created and registered:~p ~n", [Schema]), {ok, Schema};
+				{error, Reason} -> io:format("Failed to create schema:~p Reason:~p (Make sure ~p file exists.)~n", [Schema, Reason, "src/model/" ++ Schema  ++ ".xml"]), {error, Reason}
+			end
   end.
 
 create_search_index(Conn, Type, Opts) ->
   Index = type_to_index(Type),
-  Schema = type_to_schema(Type),
   case riakc_pb_socket:get_search_index(Conn, Index) of
     {error, <<"notfound">>} ->
-      riakc_pb_socket:create_search_index(Conn, Index, list_to_binary(Schema), Opts),
-      B = type_to_bucket_type_bucket(Type),
-      case riakc_pb_socket:set_search_index(Conn, B, Index) of
-        ok -> io:format("Search Index:~p is set~n",[Index]);
-        {error, Reason} -> io:format("Failed to creat index:~p Reason:~p ~n", [Index, Reason])
-      end;
+      Schema = type_to_schema(Type),
+      Result = riakc_pb_socket:create_search_index(Conn, Index, list_to_binary(Schema), Opts),
+      io:format("Please wait for 2 secs...~n"),
+      timer:sleep(2000),
+      Result;
     {ok, _} ->
-      io:format("Search Index:~p already exists! If your schema has changed. You must remove index first~n",[Index]),
+      io:format("Index:~p exists already! You must remove index first~n",[Index]),
       ok
   end.
+
+set_search_index(Conn, Type) ->
+  Index = type_to_index(Type),
+  Bucket = type_to_bucket(Type),
+  case riakc_pb_socket:set_search_index(Conn, Bucket, Index) of
+    ok              -> io:format("Search Index:~p is set~n",[Index]);
+    {error, Reason} -> io:format("Failed to set the index(~p) on the bucket(~p) Reason:~p ~n", [Index, Bucket, Reason])
+  end.
+
+add_search_index(Conn, Type, Opts) ->
+  case create_search_index(Conn, Type, Opts) of
+    ok           -> set_search_index(Conn, Type);
+    Result       -> io:format("No index created:~p~n", [Result])
+  end. 
 
 type_to_schema(Type) when is_atom(Type) ->
   type_to_schema(atom_to_list(Type));
 type_to_schema(Type) when is_list(Type) ->
-  string:join([app_name(), "schema", Type],"_").
+  string:join([schema_prefix(), "schema", Type],"_").
 
 setup_model(Model) when is_list(Model) ->
   setup_model(list_to_atom(Model));
@@ -329,23 +345,33 @@ setup_model(Model, Opts) when is_list(Model) ->
   setup_model(list_to_atom(Model), Opts);
 setup_model(Model, Opts) when is_atom(Model) ->
   {ok, Conn} = riakc_pb_socket:start_link(?RS2_DB_HOST, ?RS2_DB_PORT),
-  create_schema(Conn, Model),
-  timer:sleep(1000),
-  create_search_index(Conn, Model, Opts),
+  case create_schema(Conn, Model) of
+    {ok, _} ->
+			timer:sleep(3000),
+			add_search_index(Conn, Model, Opts);
+    {error, _Reason} ->
+      error
+  end,
   riakc_pb_socket:stop(Conn).
 
 clear_index(Model) when is_list(Model) ->
   clear_index(list_to_atom(Model));
 clear_index(Model) when is_atom(Model) ->
   {ok, Conn} = riakc_pb_socket:start_link(?RS2_DB_HOST, ?RS2_DB_PORT),
-  Bucket = type_to_bucket_type_bucket(Model),
-  BucketProps = [{search_index, <<"_dont_index_">>}],
-  riakc_pb_socket:set_bucket(Conn, Bucket, BucketProps),
-  io:format("Clear bucket property search index~n"),
-  timer:sleep(1000),
   Index = type_to_index(Model),
-  riakc_pb_socket:delete_search_index(Conn, Index), 
-  io:format("Delete search index..Done!~n"),
+  case riakc_pb_socket:get_search_index(Conn, Index) of
+    {error, <<"notfound">>} ->
+      io:format("Index(~p) not exists!!~n", [Index]);
+    {ok, _} ->
+			Bucket = type_to_bucket(Model),
+			BucketProps = [{search_index, <<"_dont_index_">>}],
+			io:format("Clear bucket property..~n"),
+			riakc_pb_socket:set_bucket(Conn, Bucket, BucketProps),
+			timer:sleep(1000),
+			io:format("Delete search index..~n"),
+			riakc_pb_socket:delete_search_index(Conn, Index), 
+			io:format("Done!~n")
+  end,
   riakc_pb_socket:stop(Conn).
 
 reindex(Model) when is_list(Model) ->
@@ -357,7 +383,7 @@ reindex(Model) when is_atom(Model) ->
              Record:save()
            end,
   {ok, Conn} = riakc_pb_socket:start_link(?RS2_DB_HOST, ?RS2_DB_PORT),
-  Bucket = type_to_bucket_type_bucket(Model),
+  Bucket = type_to_bucket(Model),
   {ok, Keys} = riakc_pb_socket:list_keys(Conn, Bucket),
   io:format("Re-index ~p ~p record(s)..~n", [length(Keys), Model]),
   lists:map(Update, Keys),
