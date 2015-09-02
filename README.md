@@ -1,7 +1,7 @@
 ChicagoBoss Riak Search 2.0 DB Adapter(Not Finished)
 =====================================
 
-This adapter is trying to enable Riak Search 2.0 (Solr-based search) in ChicagoBoss. Because Solr needs schema XML files for understanding the data structure, the schema files need to be manually created. So this adapter tried to automate the work of that as much as possible, such as register schmea, create and set index on a bucket etc. Each boss model would be a bucket. The application would be the bucket type containing all the bucket. The drawback as Basho expert told me is that the index would be slow to be set on a bucket if not a bucket type. The more such bucket with custom index on it, the slower. The trade-off is my motivation as well which is that I can use boss_db.
+This adapter is trying to enable Riak Search 2.0 (Solr-based search) in ChicagoBoss. Because Solr needs schema XML files for understanding the data structure, the schema files need to be manually created. So this adapter tried to automate the work of that as much as possible, such as register schmea, create and set index on a bucket etc. Each boss model would be a bucket. The application would be the bucket type containing all the bucket. The drawback as Basho expert told me is that the search would be slow when index is set on a bucket, not a bucket type. The more such bucket with custom index on it, the slower. So use it with caution.
 
 
 This is needed: https://github.com/basho/riak-erlang-client/tree/2.1.1
