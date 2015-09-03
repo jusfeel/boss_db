@@ -309,8 +309,8 @@ create_search_index(Conn, Type, Opts) ->
     {error, <<"notfound">>} ->
       Schema = type_to_schema(Type),
       Result = riakc_pb_socket:create_search_index(Conn, Index, list_to_binary(Schema), Opts),
-      io:format("Please wait for 2 secs...~n"),
-      timer:sleep(2000),
+      io:format("Please wait ...~n"),
+      timer:sleep(15000),
       Result;
     {ok, _} ->
       io:format("Index:~p exists already! You must remove index first~n",[Index]),
@@ -347,7 +347,7 @@ setup_model(Model, Opts) when is_atom(Model) ->
   {ok, Conn} = riakc_pb_socket:start_link(?RS2_DB_HOST, ?RS2_DB_PORT),
   case create_schema(Conn, Model) of
     {ok, _} ->
-			timer:sleep(3000),
+			timer:sleep(1000),
 			add_search_index(Conn, Model, Opts);
     {error, _Reason} ->
       error
