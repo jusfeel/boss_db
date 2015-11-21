@@ -131,9 +131,9 @@ save_record(Conn, Record) ->
     Bucket = type_to_bucket(Type),
     PropList = [{riak_search_encode_key(K), riak_search_encode_value(V)} || {K, V} <- Record:attributes(), K =/= id],
     RiakKey = case Record:id() of
-        id -> % New entry
-	    GUID        = uuid:to_string(uuid:uuid4()),
-            %io:format("PropList:~p~n",[PropList]),
+        id -> 
+            %% new record
+	          GUID  = uuid:to_string(uuid:uuid4()),
             O		= riakc_obj:new(Bucket, list_to_binary(GUID), term_to_binary(PropList), "application/chicagobossmodel"),
             {ok, _RO}	= riakc_pb_socket:put(Conn, O, [return_body]),
             GUID;
@@ -141,10 +141,19 @@ save_record(Conn, Record) ->
             [_ | Tail]	= string:tokens(DefinedId, "-"),
             Key		= string:join(Tail, "-"),
             BinKey	= list_to_binary(Key),
-            {ok, O}	= riakc_pb_socket:get(Conn, Bucket, BinKey),
-            O2		= riakc_obj:update_value(O, term_to_binary(PropList), "application/chicagobossmodel"),
-            ok		= riakc_pb_socket:put(Conn, O2),
-            Key
+            case riakc_pb_socket:get(Conn, Bucket, BinKey) of
+              {ok, O}	->
+                %% update existing record
+                O2		= riakc_obj:update_value(O, term_to_binary(PropList), "application/chicagobossmodel"),
+                riakc_pb_socket:put(Conn, O2),
+                Key;
+              {error, notfound} ->
+                %% new record with the given ID
+                O   = riakc_obj:new(Bucket, BinKey, term_to_binary(PropList), "application/chicagobossmodel"),
+                {ok, _RO} = riakc_pb_socket:put(Conn, O, [return_body]),
+                Key;
+              _ -> throw(error_save_record)
+            end
     end,
     {ok, Record:set(id, lists:concat([Type, "-", RiakKey]))}.
 
@@ -309,7 +318,7 @@ create_search_index(Conn, Type, Opts) ->
     {error, <<"notfound">>} ->
       Schema = type_to_schema(Type),
       Result = riakc_pb_socket:create_search_index(Conn, Index, list_to_binary(Schema), Opts),
-      io:format("Please wait ...~n"),
+      io:format("Just a moment..~n"),
       timer:sleep(15000),
       Result;
     {ok, _} ->
