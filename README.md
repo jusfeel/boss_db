@@ -1,24 +1,28 @@
 ChicagoBoss Riak Search 2.0 DB Adapter
 ======================================
 
-Enable Riak Search 2.0 (Solr-based) in ChicagoBoss. Solr needs schema files. So this module has some API to register schmea, setup index.
+Enable Riak Search 2.0 (Solr-based) in ChicagoBoss. 
 
-Assuming every boss model be a bucket, the whole application be using single bucket type. 
+Since `solr` needs schema files, this adapter has some API to register schmea, setup index but you have to run them in the boss console.
 
-The drawback, as Basho told me, search would be slow when index is set on per bucket. 
+Each boss model will be a bucket and the whole application will be using a single bucket type. 
 
-This is needed: https://github.com/basho/riak-erlang-client/tree/2.1.1
+The drawback is that, as Basho people told me, solr search would be slow when index is set on bucket, not bucket type.
 
-Make sure it is in rebar.config under boss_db
+So, I have basically eliminated the possiblility of using more than one bucket type.
 
-{riakc,         ".*",   {git, "git://github.com/basho/riak-erlang-client.git", {tag, "2.1.1"}}},
+This is needed: https://github.com/basho/riak-erlang-client/tree/2.1.1 in rebar.config under `boss_db`
 
-I aslo allow self-defined ID so you can user:new("1234567", "Tom", "tom@gmail.com") a new record with defined ID "1234567"
+    {riakc,         ".*",   {git, "git://github.com/basho/riak-erlang-client.git", {tag, "2.1.1"}}},
 
+You can give a ID so you can 
 
+    user:new("1234567", "Tom", "tom@gmail.com") a new record with defined ID "1234567"
 
-You Are Warned
--------------
+This way, you use the pre-defined key since Riak is Key-Value store.
+
+Still, be Warned
+----------------
 * Solr rows defaultly returns 10 records only, so I hard-code 10 million maximum if you did not give a limit
 * Make sure you follow the configuration below - it is quite easy but not simple - too many factors in play.
 * You need to create and activate the bucket type before everything else, set allow_mult to false 
@@ -43,7 +47,7 @@ It is an erlang proplist extractor.
 
         Compile the boss_model_extractor.erl into .beam file
         Move it to /opt/beams/
-        Edit advanced.config to add the path
+        Edit `advanced.config` to add the path
 
         [
         	...
@@ -75,18 +79,18 @@ It is an erlang proplist extractor.
         -define(RS2_DB_HOST, "127.0.0.1").
         -define(RS2_DB_PORT, 8087).
     
-Create your the bucket type manually (using default n_val)
+Create your the bucket type manually (using default `n_val`)
 
         $> riak-admin bucket-type create <application_name>
         $> riak-admin bucket-type activate <application_name>
       
-Set your own n_val if you have to
+Set your own `n_val` if you have to
 
         $> riak-admin bucket-type create <applcation_name> '{"props":{"n_val":1}}'
 
-But whatever n_val is, if it's not the default 3, you have run setup_model/2 instead of setup_model/1 later.
+But whatever `n_val` is, if it's not the default 3, you have to run `setup_model/2` instead of `setup_model/1` later.
 
-And you might also want to change allow_mult to false
+And you might also want to change `allow_mult` to false
 
         $> riak-admin bucket-type update <bucket_type> '{"props":{"allow_mult":false}}'
 
