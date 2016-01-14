@@ -86,7 +86,8 @@ Set your own n_val if you have to
 
 But whatever n_val is, if it's not the default 3, you have run setup_model/2 instead of setup_model/1 later.
 
-And
+And you might also want to change allow_mult to false
+
         $> riak-admin bucket-type update <bucket_type> '{"props":{"allow_mult":false}}'
 
 
