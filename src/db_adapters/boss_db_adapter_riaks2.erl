@@ -3,7 +3,7 @@
 -export([init/1, terminate/1, start/1, stop/0, find/2, find/7]).
 -export([count/3, counter/2, incr/2, incr/3, delete/2, save_record/2]).
 -export([push/2, pop/2]).
--export([setup_model/1, setup_model/2, clear_index/1, reindex/1, re_index/1, re_index/2, create_schema/2, create_search_index/3, add_search_index/3, set_search_index/2]).
+-export([setup_model/1, setup_model/2, clear_index/1, index/1, reindex/1, reindex/2, create_schema/2, create_search_index/3, add_search_index/3, set_search_index/2]).
 
 -define(LOG(Name, Value), lager:debug("DEBUG: ~s: ~p~n", [Name, Value])).
 
@@ -74,7 +74,7 @@ get_count(Conn, Type, Conditions, Max, Skip, Sort, SortOrder) ->
   Index = type_to_index(Type),
   Options = get_search_options(Max, Skip, Sort, SortOrder),
   Query = build_search_query(Conditions),
-  {ok, Results} = riakc_pb_socket:search(Conn, Index, list_to_binary(Query), Options), 
+  {ok, Results} = riakc_pb_socket:search(Conn, Index, list_to_binary(Query), Options),
   Results#search_results.num_found.
 
 get_search_options(Max, Skip, Sort, SortOrder) ->
@@ -121,17 +121,17 @@ delete(Conn, Id) ->
     {_Type, Bucket, Key} = infer_type_from_id(Id),
     ok = riakc_pb_socket:delete(Conn, Bucket, Key).
 
-%The call riakc_obj:new(Bucket::binary(),'undefined',PropList::[{binary(),_}]) 
+%The call riakc_obj:new(Bucket::binary(),'undefined',PropList::[{binary(),_}])
 % will never return since the success typing is
-% ('undefined' | binary(),'undefined' | binary(),'undefined' | binary()) -> 
-% {'riakc_obj','undefined' | binary(),'undefined' | binary(),'undefined',[],'undefined','undefined' | binary()} and the contract is 
+% ('undefined' | binary(),'undefined' | binary(),'undefined' | binary()) ->
+% {'riakc_obj','undefined' | binary(),'undefined' | binary(),'undefined',[],'undefined','undefined' | binary()} and the contract is
 % (bucket(),key(),value()) -> riakc_obj()
 save_record(Conn, Record) ->
     Type = element(1, Record),
     Bucket = type_to_bucket(Type),
     PropList = [{riak_search_encode_key(K), riak_search_encode_value(V)} || {K, V} <- Record:attributes(), K =/= id],
     RiakKey = case Record:id() of
-        id -> 
+        id ->
             %% new record
 	          GUID  = uuid:to_string(uuid:uuid4()),
             O		= riakc_obj:new(Bucket, list_to_binary(GUID), term_to_binary(PropList), "application/chicagobossmodel"),
@@ -305,7 +305,7 @@ create_schema(Conn, Type) ->
   Schema = type_to_schema(Type),
   case file:read_file("src/model/" ++ Schema  ++ ".xml") of
     {error, R} -> io:format("~p not exist~n", [Schema]), {error, R};
-    {ok, SchemaData} ->  
+    {ok, SchemaData} ->
 			case riakc_pb_socket:create_search_schema(Conn, list_to_binary(Schema), SchemaData) of
 				ok -> io:format("Schema is created and registered:~p ~n", [Schema]), {ok, Schema};
 				{error, Reason} -> io:format("Failed to create schema:~p Reason:~p (Make sure ~p file exists.)~n", [Schema, Reason, "src/model/" ++ Schema  ++ ".xml"]), {error, Reason}
@@ -338,7 +338,7 @@ add_search_index(Conn, Type, Opts) ->
   case create_search_index(Conn, Type, Opts) of
     ok           -> set_search_index(Conn, Type);
     Result       -> io:format("No index created:~p~n", [Result])
-  end. 
+  end.
 
 type_to_schema(Type) when is_atom(Type) ->
   type_to_schema(atom_to_list(Type));
@@ -378,16 +378,16 @@ clear_index(Model) when is_atom(Model) ->
 			riakc_pb_socket:set_bucket(Conn, Bucket, BucketProps),
 			timer:sleep(1000),
 			io:format("Delete search index..~n"),
-			riakc_pb_socket:delete_search_index(Conn, Index), 
+			riakc_pb_socket:delete_search_index(Conn, Index),
 			io:format("Done!~n")
   end,
   riakc_pb_socket:stop(Conn).
 
-reindex(Model) when is_list(Model) ->
-  reindex(list_to_atom(Model));
-reindex(Model) when is_atom(Model) ->
+index(Model) when is_list(Model) ->
+  index(list_to_atom(Model));
+index(Model) when is_atom(Model) ->
   Update = fun (RiakKey) ->
-             K = lists:concat([Model, "-", binary_to_list(RiakKey)]), 
+             K = lists:concat([Model, "-", binary_to_list(RiakKey)]),
              Record = boss_db:find(K),
              Record:save()
            end,
@@ -399,15 +399,15 @@ reindex(Model) when is_atom(Model) ->
   io:format("Done!~n"),
   riakc_pb_socket:stop(Conn).
 
-re_index(Model) ->
-  re_index(Model, []).
+reindex(Model) ->
+  reindex(Model, []).
 
-re_index(Model, Opts) ->
+reindex(Model, Opts) ->
   clear_index(Model),
   timer:sleep(2000),
   setup_model(Model, Opts),
   timer:sleep(2000),
-  reindex(Model).
+  index(Model).
 
 
 

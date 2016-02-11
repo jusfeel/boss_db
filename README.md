@@ -164,13 +164,13 @@ And you might also want to change `allow_mult` to false
         #3 If you did it wrong, you can clear the index
         > boss_db_adapter_riaks2:clear_index(<model>)
 
-        #4 Re-index all all existing records of the model
+        #4 Index all all existing records of the model
         # new field value will be "undefined"
-        > boss_db_adapter_riaks2:reindex(<model>) 
+        > boss_db_adapter_riaks2:index(<model>) 
 
-        # Force reindex ( Delete previous one #3 -> #1/2 -> #4 )
-        > boss_db_adapter_riaks2:re_index(<model>)
-        > boss_db_adapter_riaks2:re_index(<model>, [{n_val, 1}]).
+        # Reindex (clear, setup, index in sequence) (  #3 -> #1/2 -> #4 )
+        > boss_db_adapter_riaks2:reindex(<model>)
+        > boss_db_adapter_riaks2:reindex(<model>, [{n_val, 1}]).
 
 This will 
 * register schema file
